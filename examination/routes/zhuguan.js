@@ -20,6 +20,7 @@ class questinfo{
         this.question = '';
         this.uuid = '';
         this.answerid = '';
+        this.explain = '';
         this.type = '';
         this.optons = [];
         this.readcount = 0;
@@ -65,6 +66,7 @@ function getQuestionUser(page, size, accountid) {
                 let question = new  questinfo();
                 question.uuid = temobj.uuid;
                 question.answerid = temobj.answerid;
+                question.explain = temobj.explain;
                 question.type = temobj.type;
                 question.question = temobj.question;
                 question.optons = temobj.optons;
@@ -124,6 +126,7 @@ function getQuestionData(page, size) {
                     let question = new  questinfo();
                     question.uuid = temobj.uuid;
                     question.answerid = temobj.answerid;
+                    question.explain = temobj.explain;
                     question.type = temobj.type;
                     question.question = temobj.question;
                     question.optons = temobj.optons;
@@ -198,37 +201,38 @@ function getIsUser(token) {
 function getGroup(token) {
     const  pre = new Promise((resolve, reject) =>{
         db.query(`SELECT COUNT(*) as count FROM questions;`, (error, results, fields) => {
-            const pagesize = 100;
-            const totlenum = results[0].count;
-            let groupnum = parseInt(totlenum / pagesize);
-            const temadd = totlenum % pagesize;
-            if (temadd > 0){
-                groupnum = groupnum + 1;
-            }
-
-            let grouparr = [];
-            let seriesarr = [];
-            for (let i = 0; i < groupnum; i++){
-                let teminfo = new groupinfo();
-                teminfo.pagenum = groupnum;
-                teminfo.pagesize = pagesize;
-
-                if (i == (groupnum - 1) && temadd > 0) {
-                    teminfo.showsize = temadd;
-                }else{
-                    teminfo.showsize = pagesize;
+            if (!error){
+                const pagesize = 100;
+                const totlenum = results[0].count;
+                let groupnum = parseInt(totlenum / pagesize);
+                const temadd = totlenum % pagesize;
+                if (temadd > 0){
+                    groupnum = groupnum + 1;
                 }
 
-                const callback = function (callback) {
-                    db.query(`SELECT * FROM questionread WHERE accountid = '${token}';`, function (error, rlts, fields){
+                let grouparr = [];
+                let seriesarr = [];
+                for (let i = 0; i < groupnum; i++){
+                    let teminfo = new groupinfo();
+                    teminfo.pagenum = i;
+                    teminfo.pagesize = pagesize;
 
-                        callback(error, rlts);
-                    });
+                    if (i == (groupnum - 1) && temadd > 0) {
+                        teminfo.showsize = temadd;
+                    }else{
+                        teminfo.showsize = pagesize;
+                    }
+
+                    grouparr.push(teminfo);
+
                 }
 
-                seriesarr.push(callback);
-
+                resolve(grouparr);
             }
+            else {
+                reject(error);
+            }
+
         });
     });
     return pre;
@@ -350,7 +354,16 @@ router.get('/group', (req, res, next) => {
     const token = req.header('token');
     getIsUser(token).then((isuser) => {
         if (isuser){
-            getGroup();
+            getGroup(token).then((results) =>{
+
+                const temout = outlib.outdata(results, '');
+                res.statusCode = temout.state;
+                res.send(temout.data);
+            }).catch((error)=>{
+                const temout = outlib.outerror(error);
+                res.statusCode = temout.state;
+                res.send(temout.data);
+            });
 
         }else {
             const temout = outlib.madeaccountout();
